@@ -24,6 +24,19 @@ class FibSeries
 		return $this->recursive_culc($cur - 1) + $this->recursive_culc($cur - 2);
 	}
 
+	private function recursive_culc_stav($cur, $a = 0, $b = 1)
+	{
+		if($cur == 0)
+		{
+			return $a;
+		}
+		if($cur == 1)
+		{
+			return $b;
+		}
+		return $this->recursive_culc_stav($cur-1,$b,$a+$b);
+	}
+
 	private function linear_culc()
 	{
 		if($this->index == 0)
@@ -66,8 +79,9 @@ class FibSeries
 	}
 }
 
-$myfib = new FibSeries(40);
-$myfib->culc("recursive_culc");
+$myfib = new FibSeries(10);
+//$myfib->culc("recursive_culc");
 $myfib->culc("linear_culc");
+$myfib->culc("recursive_culc_stav");
 
 
