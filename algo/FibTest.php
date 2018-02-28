@@ -80,7 +80,7 @@ class FibSeries
 }
 
 $myfib = new FibSeries(10);
-//$myfib->culc("recursive_culc");
+$myfib->culc("recursive_culc");
 $myfib->culc("linear_culc");
 $myfib->culc("recursive_culc_stav");
 
