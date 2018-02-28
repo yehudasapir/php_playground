@@ -145,6 +145,7 @@ class Trie
 
 }
 
+//Test Trie with example array
 $testArr = ["aab","aaa","bbcdef","bab","abc","aaa","acb","ade"];
 $trie = new Trie($testArr);
 $trie->to_str();
