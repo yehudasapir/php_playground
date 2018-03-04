@@ -8,6 +8,7 @@ class URLInfo
 	private $url_id = null;
 	private $ref_url_id = null;
 	private $red_url_id = null;
+	private $js_creator = null;
 
 	public function __construct($_info = [])
 	{
@@ -15,11 +16,17 @@ class URLInfo
 		$this->url_id = $_info["UrlId"];
 		$this->ref_url_id = $_info["RefUrlId"];
 		$this->red_url_id = $_info["RedUrlId"];
+		$this->js_creator = empty($_info["JSCodeUrlId"]) ? "0" : $_info["JSCodeUrlId"];
 		$this->domain = parse_url($_info["Url"], PHP_URL_HOST);
 	}
 
 	public function get_parent()
 	{
+		//parent can be the creator or the refferer
+		if($this->js_creator > 0)
+		{
+			return $this->js_creator;
+		}
 		return $this->ref_url_id;
 	}
 
@@ -31,6 +38,11 @@ class URLInfo
 	public function get_url()
 	{
 		return $this->url;
+	}
+
+	public function get_js_creator()
+	{
+		return $this->js_creator;
 	}
 
 	public function get_domain()
@@ -88,27 +100,26 @@ class PageUrlsTree
 	{
 		$this->original_arr = $_info;
 		$this->set_head();
-		$this->init();
+		$this->build_tree();
 	}
 
 	private function set_head()
 	{
-		$first = $this->original_arr[0];
-		if(empty($first))
+		if(array_key_exists(0,$this->original_arr))
 		{
-			$head_info = new URLInfo(["Url" => "http://HEAD", "UrlId" => 0 , "RefUrlId" =>0,"RedUrlId" => "0"]);
+			$first = $this->original_arr[0];
+			$head_info = new URLInfo($first);
+ 			unset($this->original_arr[0]);
 		}
 		else
 		{
- 			$head_info = new URLInfo($first);
- 			unset($this->original_arr[0]);
-
+			$head_info = new URLInfo(["Url" => "http://HEAD", "UrlId" => 0 , "RefUrlId" => "0","RedUrlId" => "0", "JSCodeUrlId" => "0"]);
 		}
 		$this->head = new URLNode($head_info);
 		$this->urls_arr[$head_info->get_id()] = $this->head;
 	}
 
-	private function init()
+	private function build_tree()
 	{
 		foreach ($this->original_arr as $id => $value) 
 		{
@@ -116,9 +127,35 @@ class PageUrlsTree
 			$url_node = new URLNode($url_info);
 			$this->urls_arr[$url_info->get_id()] = $url_node;
 			$parent = $url_info->get_parent();
-			$url_node->set_parent($parent);
-			$parent_node = $this->urls_arr[$parent];
-			$parent_node->add_child($url_node);
+			$this->set_parent($parent,$url_node);
+		}
+	}
+
+	private function set_parent($_parent_id,$url_node)
+	{
+		if(array_key_exists($_parent_id,$this->urls_arr))
+		{
+			$parent_node = $this->urls_arr[$_parent_id];
+		}
+		else
+		{
+			$parent_info = new URLInfo(["Url" => "http://MISSING_ID", "UrlId" => $_parent_id , "RefUrlId" => "0","RedUrlId" => "0", "JSCodeUrlId" => "0"]);
+			$parent_node = new URLNode($parent_info);
+			$this->urls_arr[$_parent_id] = $parent_node; 
+		}
+		$url_node->set_parent($_parent_id);
+		$parent_node->add_child($url_node);
+	}
+
+	public function get_node_by_url($_url)
+	{
+		foreach ($this->urls_arr as $key => $node) 
+		{
+			$info = $node->get_info();
+			if(strcmp($info->get_url(),$_url) == 0)
+			{
+				return $node;
+			}
 		}
 	}
 
@@ -141,6 +178,19 @@ class PageUrlsTree
 		$this->print_tree_rec($this->head,0);
 	}
 
+	public function get_path_by_url($_url)
+	{
+		$node = $this->get_node_by_url($_url);
+		$this->get_path_by_node($node);
+	}
+
+	public function get_path_by_node($_node)
+	{
+		$info = $_node->get_info();
+		$url_id = $info->get_id();
+		$this->get_path_by_url_id($url_id);
+	}
+
 	public function get_path_by_url_id($_url_id)
 	{
 		$node = $this->urls_arr[$_url_id];
@@ -149,11 +199,9 @@ class PageUrlsTree
 			echo "no node for path\n";
 			return;
 		}
-		else
-		{
-			$this->path_up($node);
-			echo "\n";
-		}
+		echo "Print path for tree with head: ".$this->head->get_info()->get_url()."\n";
+		$this->path_up($node);
+		echo "\n";
 	}
 
 	private function path_up($_node)
@@ -162,8 +210,15 @@ class PageUrlsTree
 		{
 			return;
 		}
+		echo "[id: ".$_node->get_info()->get_id()." => ";
+		echo "url :".$_node->get_info()->get_url()."] -> ";
 		$parent = $_node->get_parent();
-		echo "->".$_node->get_info()->get_id();
+		if(!array_key_exists($parent,$this->urls_arr))
+		{
+			echo "DONE\n";
+			return;
+		}
+		$par_node = $this->urls_arr[$parent];
 		$this->path_up($this->urls_arr[$parent]);
 	}	
 
